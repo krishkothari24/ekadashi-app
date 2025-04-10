@@ -7,6 +7,7 @@ import AddIngredientForm from "./components/AddIngredientForm";
 import AuthButtons from "./components/AuthButtons";
 import { User } from "firebase/auth"
 import IngredientList from "./components/IngredientList";
+import fuzzysort from "fuzzysort";
 
 interface Ingredient {
   id: number;
@@ -73,11 +74,30 @@ function App() {
       const words = text
         .toLowerCase()
         .replace(/[^a-zA-Z\s]/g, "")
-        .split(/\s+/);
+        .split(/\s+/)
+        .filter(word => word.length > 2); // skip words  < 2
+
+      const ingredientNames = ingredients.map((ing) => ing.name.toLowerCase());
+
+
+      // Fuzzy match each OCR word to ingredient list
+const matches: string[] = [];
+
+words.forEach((word) => {
+  const result = fuzzysort.go(word, ingredientNames, { threshold: -1000 });
+  const best = result[0];
+
+  if (best && best.score > -50) {
+    matches.push(best.target);
+  }
+});
+
+setMatchedIngredients([...new Set(matches)]);
+
 
       // Find any words that match known ingredients
-      const matches = words.filter((word) => ingredients.some((ing) => ing.name.toLowerCase() === word));
-      setMatchedIngredients([...new Set(matches)]); // Remove duplicates
+      // const matches = words.filter((word) => ingredients.some((ing) => ing.name.toLowerCase() === word));
+      // setMatchedIngredients([...new Set(matches)]); // Remove duplicates
 
     } catch (err) {
       console.error("OCR failed", err);
